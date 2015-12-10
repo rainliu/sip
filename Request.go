@@ -8,6 +8,8 @@ package sip
 // documentation for Request.Write and RoundTripper.
 
 type Request interface {
+	Message
+
 	/**
 	 * Gets method string of this Request message.
 	 *
