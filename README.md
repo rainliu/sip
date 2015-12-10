@@ -1,2 +1,2 @@
 # sip
-SIP
+SIP in idiomatic Go
