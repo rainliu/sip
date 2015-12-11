@@ -1,5 +1,12 @@
 package sip
 
+import (
+	"bytes"
+	"io"
+	"io/ioutil"
+	"strings"
+)
+
 // A Request represents an SIP request received by a server
 // or to be sent by a client.
 //
@@ -403,3 +410,61 @@ const PRACK = "PRACK"
 const UPDATE = "UPDATE"
 
 //}
+/////////////////////////////////////////////////////////////////////////////////////////
+type request struct {
+	message
+
+	method string
+	uri    string
+}
+
+func NewRequest(method, uriStr string, body io.Reader) (Request, error) {
+	//	u, err := uri.Parse(uriStr)
+	//	if err != nil {
+	//		return nil, err
+	//	}
+	rc, ok := body.(io.ReadCloser)
+	if !ok && body != nil {
+		rc = ioutil.NopCloser(body)
+	}
+	req := &request{
+		message: message{
+			sipVersion: "SIP/2.0",
+			header:     make(Header),
+			body:       rc,
+		},
+		method: method,
+		uri:    uriStr,
+		//Host:       u.Host,
+	}
+	if body != nil {
+		switch v := body.(type) {
+		case *bytes.Buffer:
+			req.contentLength = int(v.Len())
+		case *bytes.Reader:
+			req.contentLength = int(v.Len())
+		case *strings.Reader:
+			req.contentLength = int(v.Len())
+		}
+	}
+
+	return req, nil
+}
+
+func (this *request) GetMethod() string {
+	return this.method
+}
+
+func (this *request) SetMethod(method string) error {
+	this.method = method
+	return nil
+}
+
+func (this *request) GetRequestURI() string {
+	return this.uri
+}
+
+func (this *request) SetRequestURI(uri string) error {
+	this.uri = uri
+	return nil
+}
