@@ -18,11 +18,11 @@ type Provider interface {
 type provider struct {
 	//listeners       map[Listener]Listener
 	transports map[Transport]Transport
-	//sessions   		map[Session]*session
+	//transactions   		map[Transaction]Transaction
 
 	//forward   chan Message
-	//join  chan *session
-	//leave chan *session
+	//join  	chan Transaction
+	//leave 	chan Transaction
 
 	quit      chan bool
 	waitGroup *sync.WaitGroup
@@ -35,11 +35,11 @@ func newProvider(tracer Tracer) *provider {
 
 	//this.listeners = make(map[Listener]Listener)
 	this.transports = make(map[Transport]Transport)
-	//this.sessions = make(map[Session]*session)
+	//this.transactions = make(map[Transaction]Transaction)
 
-	//this.forward = make(chan Message)
-	//this.join = make(chan *session)
-	//this.leave = make(chan *session)
+	//this.forward 	= make(chan Message)
+	//this.join 	= make(chan Transaction)
+	//this.leave 	= make(chan Transaction)
 
 	this.quit = make(chan bool)
 	this.waitGroup = &sync.WaitGroup{}
@@ -84,11 +84,11 @@ func (this *provider) Run() {
 	//	for {
 	//		select {
 	//		case s := <-this.join:
-	//			this.sessions[s] = s
+	//			this.transactions[s] = s
 	//		case s := <-this.leave:
-	//			delete(this.sessions, s)
+	//			delete(this.transactions, s)
 	//		case msg := <-this.forward:
-	//			for _, s := range this.sessions {
+	//			for _, s := range this.transactions {
 	//				if err := s.Forward(msg); err != nil {
 	//					this.tracer.Println(err)
 	//					for _, l := range this.listeners {
@@ -97,19 +97,19 @@ func (this *provider) Run() {
 	//				}
 	//			}
 	//		case <-this.quit:
-	//			this.tracer.Println("ServeForward Quit")
+	//			this.tracer.Println("Provider Quit")
 	//			return
 	//		}
 	//	}
 }
 
 func (this *provider) Stop() {
-	//	this.quit <- true
-	//	for _, s := range this.sessions {
-	//		s.Terminate(errors.New("Provider Stopped\n"))
+	//	for _, s := range this.transactions {
+	//		s.Close()
 	//	}
 	//	for _, t := range this.transports {
 	//		t.Close()
 	//	}
+	//	close(this.quit)
 	//	this.waitGroup.Wait()
 }
