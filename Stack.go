@@ -11,7 +11,7 @@ type Stack interface {
 	GetTransports() []Transport
 	DeleteTransport(t Transport)
 
-	CreateProvider(tracer Tracer) Provider
+	CreateProvider() Provider
 	GetProviders() []Provider
 	DeleteProvider(p Provider)
 
@@ -23,9 +23,9 @@ type Stack interface {
 
 var stackSingleton Stack
 
-func GetStack() Stack {
+func GetStack(tracer Tracer) Stack {
 	if stackSingleton == nil {
-		stackSingleton = newStack()
+		stackSingleton = newStack(tracer)
 	}
 	return stackSingleton
 }
@@ -33,13 +33,15 @@ func GetStack() Stack {
 type stack struct {
 	transports map[Transport]*transport
 	providers  map[Provider]*provider
+	tracer     Tracer
 }
 
-func newStack() Stack {
+func newStack(tracer Tracer) Stack {
 	this := &stack{}
 
 	this.transports = make(map[Transport]*transport)
 	this.providers = make(map[Provider]*provider)
+	this.tracer = tracer
 
 	return this
 }
@@ -68,8 +70,8 @@ func (this *stack) DeleteTransport(t Transport) {
 	delete(this.transports, t)
 }
 
-func (this *stack) CreateProvider(tracer Tracer) Provider {
-	p := newProvider(tracer)
+func (this *stack) CreateProvider() Provider {
+	p := newProvider(this.tracer)
 
 	this.providers[p] = p
 
