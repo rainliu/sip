@@ -414,12 +414,12 @@ const UPDATE = "UPDATE"
 type request struct {
 	message
 
-	method string
-	uri    string
+	method     string
+	requestURI string
 }
 
-func NewRequest(method, uriStr string, body io.Reader) (Request, error) {
-	//	u, err := uri.Parse(uriStr)
+func NewRequest(method, requestURI string, body io.Reader) (Request, error) {
+	//	u, err := uri.Parse(requestURI)
 	//	if err != nil {
 	//		return nil, err
 	//	}
@@ -433,9 +433,8 @@ func NewRequest(method, uriStr string, body io.Reader) (Request, error) {
 			header:     make(Header),
 			body:       rc,
 		},
-		method: method,
-		uri:    uriStr,
-		//Host:       u.Host,
+		method:     method,
+		requestURI: requestURI,
 	}
 	if body != nil {
 		switch v := body.(type) {
@@ -461,10 +460,10 @@ func (this *request) SetMethod(method string) error {
 }
 
 func (this *request) GetRequestURI() string {
-	return this.uri
+	return this.requestURI
 }
 
-func (this *request) SetRequestURI(uri string) error {
-	this.uri = uri
+func (this *request) SetRequestURI(requestURI string) error {
+	this.requestURI = requestURI
 	return nil
 }

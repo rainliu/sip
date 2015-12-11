@@ -1,5 +1,13 @@
 package sip
 
+import (
+	"bytes"
+	"errors"
+	"io"
+	"io/ioutil"
+	"strings"
+)
+
 type Response interface {
 	Message
 
@@ -573,8 +581,41 @@ const SESSION_NOT_ACCEPTABLE = 606
 //}
 ////////////////////////////////////////////////////////////////////////////////
 type response struct {
+	message
+
 	statusCode   int
 	reasonPhrase string
+}
+
+func NewResponse(statusCode int, reasonPhrase string, body io.Reader) (Response, error) {
+	if statusCode < 100 {
+		return nil, errors.New("Invalid StatusCode")
+	}
+	rc, ok := body.(io.ReadCloser)
+	if !ok && body != nil {
+		rc = ioutil.NopCloser(body)
+	}
+	this := &response{
+		message: message{
+			sipVersion: "SIP/2.0",
+			header:     make(Header),
+			body:       rc,
+		},
+		statusCode:   statusCode,
+		reasonPhrase: reasonPhrase,
+	}
+	if body != nil {
+		switch v := body.(type) {
+		case *bytes.Buffer:
+			this.contentLength = int(v.Len())
+		case *bytes.Reader:
+			this.contentLength = int(v.Len())
+		case *strings.Reader:
+			this.contentLength = int(v.Len())
+		}
+	}
+
+	return this, nil
 }
 
 func (this *response) SetStatusCode(statusCode int) error {
