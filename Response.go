@@ -571,3 +571,26 @@ const DOES_NOT_EXIST_ANYWHERE = 604
 const SESSION_NOT_ACCEPTABLE = 606
 
 //}
+////////////////////////////////////////////////////////////////////////////////
+type response struct {
+	statusCode   int
+	reasonPhrase string
+}
+
+func (this *response) SetStatusCode(statusCode int) error {
+	this.statusCode = statusCode
+	return nil
+}
+
+func (this *response) GetStatusCode() int {
+	return this.statusCode
+}
+
+func (this *response) SetReasonPhrase(reasonPhrase string) error {
+	this.reasonPhrase = reasonPhrase
+	return nil
+}
+
+func (this *response) GetReasonPhrase() string {
+	return this.reasonPhrase
+}

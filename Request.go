@@ -410,7 +410,7 @@ const PRACK = "PRACK"
 const UPDATE = "UPDATE"
 
 //}
-/////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 type request struct {
 	message
 
@@ -427,7 +427,7 @@ func NewRequest(method, uriStr string, body io.Reader) (Request, error) {
 	if !ok && body != nil {
 		rc = ioutil.NopCloser(body)
 	}
-	req := &request{
+	this := &request{
 		message: message{
 			sipVersion: "SIP/2.0",
 			header:     make(Header),
@@ -440,15 +440,15 @@ func NewRequest(method, uriStr string, body io.Reader) (Request, error) {
 	if body != nil {
 		switch v := body.(type) {
 		case *bytes.Buffer:
-			req.contentLength = int(v.Len())
+			this.contentLength = int(v.Len())
 		case *bytes.Reader:
-			req.contentLength = int(v.Len())
+			this.contentLength = int(v.Len())
 		case *strings.Reader:
-			req.contentLength = int(v.Len())
+			this.contentLength = int(v.Len())
 		}
 	}
 
-	return req, nil
+	return this, nil
 }
 
 func (this *request) GetMethod() string {
