@@ -90,6 +90,8 @@ type Transaction interface {
 	 * @return the Request message that created this transaction.
 	 */
 	GetRequest() Request
+
+	Close()
 }
 
 type TransactionState int

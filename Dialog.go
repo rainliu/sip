@@ -331,7 +331,7 @@ type Dialog interface {
 	 * that we are aware of today it is expected that BYE requests will end the
 	 * dialog.
 	 */
-	Delete()
+	Close()
 
 	/**
 	 * This method retrieves the transaction which resulted in the creation of
