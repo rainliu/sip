@@ -3,6 +3,8 @@ package sip
 import (
 	"errors"
 	"io"
+	"strconv"
+	"strings"
 )
 
 // A Request represents an SIP request received by a server
@@ -100,4 +102,30 @@ func (this *message) SetContentLength(l int) {
 
 func (this *message) Body() io.ReadCloser {
 	return this.body
+}
+
+// ParseSIPVersion parses a SIP version string.
+// "SIP/2.0" returns (2, 0, true).
+func ParseSIPVersion(vers string) (major, minor int, ok bool) {
+	const Big = 1000000 // arbitrary upper bound
+	switch vers {
+	case "SIP/2.0":
+		return 2, 0, true
+	}
+	if !strings.HasPrefix(vers, "SIP/") {
+		return 0, 0, false
+	}
+	dot := strings.Index(vers, ".")
+	if dot < 0 {
+		return 0, 0, false
+	}
+	major, err := strconv.Atoi(vers[4:dot])
+	if err != nil || major < 0 || major > Big {
+		return 0, 0, false
+	}
+	minor, err = strconv.Atoi(vers[dot+1:])
+	if err != nil || minor < 0 || minor > Big {
+		return 0, 0, false
+	}
+	return major, minor, true
 }

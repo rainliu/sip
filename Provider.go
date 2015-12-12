@@ -11,7 +11,6 @@ import (
 
 type Provider interface {
 	AddTransport(t Transport)
-	GetTransports() []Transport
 	RemoveTransport(t Transport)
 
 	AddListener(l Listener)
@@ -56,18 +55,6 @@ func newProvider(tracer Tracer) *provider {
 
 func (this *provider) AddTransport(t Transport) {
 	this.transports[t] = t
-}
-
-func (this *provider) GetTransports() []Transport {
-	ts := make([]Transport, len(this.transports))
-
-	l := 0
-	for _, t := range this.transports {
-		ts[l] = t
-		l++
-	}
-
-	return ts
 }
 
 func (this *provider) RemoveTransport(t Transport) {

@@ -1,10 +1,16 @@
 package sip
 
 import (
+	"bufio"
 	"bytes"
+	"errors"
+	"fmt"
 	"io"
 	"io/ioutil"
+	"net/textproto"
+	"strconv"
 	"strings"
+	"sync"
 )
 
 // A Request represents an SIP request received by a server
@@ -416,6 +422,9 @@ type request struct {
 
 	method     string
 	requestURI string
+
+	protoMajor int
+	protoMinor int
 }
 
 func NewRequest(method, requestURI string, body io.Reader) (Request, error) {
@@ -466,4 +475,162 @@ func (this *request) GetRequestURI() string {
 func (this *request) SetRequestURI(requestURI string) error {
 	this.requestURI = requestURI
 	return nil
+}
+
+// parseRequestLine parses "INVITE sip:bob@biloxi.com SIP/2.0" into its three parts.
+func parseRequestLine(line string) (method, requestURI, proto string, ok bool) {
+	s1 := strings.Index(line, " ")
+	s2 := strings.Index(line[s1+1:], " ")
+	if s1 < 0 || s2 < 0 {
+		return
+	}
+	s2 += s1 + 1
+	return line[:s1], line[s1+1 : s2], line[s2+1:], true
+}
+
+// parseContentLength trims whitespace from s and returns -1 if no value
+// is set, or the value if it's >= 0.
+func parseContentLength(cl string) (int, error) {
+	cl = strings.TrimSpace(cl)
+	if cl == "" {
+		return -1, nil
+	}
+	n, err := strconv.ParseInt(cl, 10, 32)
+	if err != nil || n < 0 {
+		return 0, fmt.Errorf("bad Content-Length %d", cl)
+	}
+	return int(n), nil
+
+}
+
+var textprotoReaderPool sync.Pool
+
+func newTextprotoReader(br *bufio.Reader) *textproto.Reader {
+	if v := textprotoReaderPool.Get(); v != nil {
+		tr := v.(*textproto.Reader)
+		tr.R = br
+		return tr
+	}
+	return textproto.NewReader(br)
+}
+
+func putTextprotoReader(r *textproto.Reader) {
+	r.R = nil
+	textprotoReaderPool.Put(r)
+}
+
+// Determine the expected body length, using RFC 2616 Section 4.4. This
+// function is not a method, because ultimately it should be shared by
+// ReadResponse and ReadRequest.
+func fixLength(header Header) (int, error) {
+	contentLens := header["Content-Length"]
+
+	if len(contentLens) > 1 {
+		// harden against HTTP request smuggling. See RFC 7230.
+		return 0, errors.New("http: message cannot contain multiple Content-Length headers")
+	}
+
+	// Logic based on Content-Length
+	var cl string
+	if len(contentLens) == 1 {
+		cl = strings.TrimSpace(contentLens[0])
+	}
+	if cl != "" {
+		n, err := parseContentLength(cl)
+		if err != nil {
+			return -1, err
+		}
+		return n, nil
+	} else {
+		header.Del("Content-Length")
+	}
+
+	// Body-EOF logic based on other methods (like closing, or chunked coding)
+	return -1, nil
+}
+
+// ReadRequest reads and parses an incoming request from b.
+func ReadRequest(b *bufio.Reader) (req *request, err error) {
+	tp := newTextprotoReader(b)
+	req = new(request)
+
+	// First line: INVITE sip:bob@biloxi.com SIP/2.0
+	var s string
+	if s, err = tp.ReadLine(); err != nil {
+		return nil, err
+	}
+	defer func() {
+		putTextprotoReader(tp)
+		if err == io.EOF {
+			err = io.ErrUnexpectedEOF
+		}
+	}()
+
+	var ok bool
+	req.method, req.requestURI, req.sipVersion, ok = parseRequestLine(s)
+	if !ok {
+		return nil, fmt.Errorf("malformed SIP request %s", s)
+	}
+	//rawurl := req.requestURI
+	if req.protoMajor, req.protoMinor, ok = ParseSIPVersion(req.sipVersion); !ok {
+		return nil, fmt.Errorf("malformed SIP version %s", req.sipVersion)
+	}
+
+	//	// CONNECT requests are used two different ways, and neither uses a full URL:
+	//	// The standard use is to tunnel HTTPS through an SIP proxy.
+	//	// It looks like "CONNECT www.google.com:443 SIP/1.1", and the parameter is
+	//	// just the authority section of a URL. This information should go in req.URL.Host.
+	//	//
+	//	// The net/rpc package also uses CONNECT, but there the parameter is a path
+	//	// that starts with a slash. It can be parsed with the regular URL parser,
+	//	// and the path will end up in req.URL.Path, where it needs to be in order for
+	//	// RPC to work.
+	//	justAuthority := req.Method == "CONNECT" && !strings.HasPrefix(rawurl, "/")
+	//	if justAuthority {
+	//		rawurl = "http://" + rawurl
+	//	}
+
+	//	if req.URL, err = url.ParseRequestURI(rawurl); err != nil {
+	//		return nil, err
+	//	}
+
+	//	if justAuthority {
+	//		// Strip the bogus "http://" back off.
+	//		req.URL.Scheme = ""
+	//	}
+
+	// Subsequent lines: Key: value.
+	mimeHeader, err := tp.ReadMIMEHeader()
+	if err != nil {
+		return nil, err
+	}
+	req.header = Header(mimeHeader)
+
+	// RFC2616: Must treat
+	//	GET /index.html HTTP/1.1
+	//	Host: www.google.com
+	// and
+	//	GET http://www.google.com/index.html HTTP/1.1
+	//	Host: doesntmatter
+	// the same.  In the second case, any Host line is ignored.
+	//	req.Host = req.URL.Host
+	//	if req.Host == "" {
+	//		req.Host = req.Header.get("Host")
+	//	}
+	//	delete(req.Header, "Host")
+
+	// fixPragmaCacheControl(req.Header)
+
+	// req.Close = shouldClose(req.ProtoMajor, req.ProtoMinor, req.Header, false)
+
+	//	err = readTransfer(req, b)
+	//	if err != nil {
+	//		return nil, err
+	//	}
+	req.contentLength, err = fixLength(req.header)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
 }
