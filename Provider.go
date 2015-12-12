@@ -17,12 +17,12 @@ type Provider interface {
 
 type provider struct {
 	//listeners       map[Listener]Listener
-	transports map[Transport]Transport
-	//transactions   		map[Transaction]Transaction
+	transports   map[Transport]Transport
+	transactions map[Transaction]Transaction
 
 	//forward   chan Message
-	//join  	chan Transaction
-	//leave 	chan Transaction
+	join  chan Transaction
+	leave chan Transaction
 
 	quit      chan bool
 	waitGroup *sync.WaitGroup
@@ -35,11 +35,11 @@ func newProvider(tracer Tracer) *provider {
 
 	//this.listeners = make(map[Listener]Listener)
 	this.transports = make(map[Transport]Transport)
-	//this.transactions = make(map[Transaction]Transaction)
+	this.transactions = make(map[Transaction]Transaction)
 
 	//this.forward 	= make(chan Message)
-	//this.join 	= make(chan Transaction)
-	//this.leave 	= make(chan Transaction)
+	this.join = make(chan Transaction)
+	this.leave = make(chan Transaction)
 
 	this.quit = make(chan bool)
 	this.waitGroup = &sync.WaitGroup{}
