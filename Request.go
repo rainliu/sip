@@ -63,11 +63,11 @@ func NewRequest(method, requestURI string, body io.Reader) (Request, error) {
 	if body != nil {
 		switch v := body.(type) {
 		case *bytes.Buffer:
-			this.contentLength = int(v.Len())
+			this.contentLength = int64(v.Len())
 		case *bytes.Reader:
-			this.contentLength = int(v.Len())
+			this.contentLength = int64(v.Len())
 		case *strings.Reader:
-			this.contentLength = int(v.Len())
+			this.contentLength = int64(v.Len())
 		}
 	}
 
@@ -89,6 +89,53 @@ func (this *request) GetRequestURI() string {
 
 func (this *request) SetRequestURI(requestURI string) error {
 	this.requestURI = requestURI
+	return nil
+}
+
+// Headers that Request.Write handles itself and should be skipped.
+var reqWriteExcludeHeader = map[string]bool{
+	"Content-Length": true,
+}
+
+//	Method URI SIP/2.0
+//	Header
+//	ContentLength
+//	Body
+func (this *request) Write(w io.Writer) error {
+	var bw *bufio.Writer
+	if _, ok := w.(io.ByteWriter); !ok {
+		bw = bufio.NewWriter(w)
+		w = bw
+	}
+
+	_, err := fmt.Fprintf(w, "%s %s SIP/2.0\r\n", this.GetMethod(), this.GetRequestURI())
+	if err != nil {
+		return err
+	}
+
+	err = this.header.WriteSubset(w, reqWriteExcludeHeader)
+	if err != nil {
+		return err
+	}
+
+	_, err = fmt.Fprintf(w, "%s: %d\r\n", "Content-Length", this.GetContentLength())
+	if err != nil {
+		return err
+	}
+
+	_, err = io.WriteString(w, "\r\n")
+	if err != nil {
+		return err
+	}
+
+	// Write body
+	if this.body != nil {
+		_, err = io.Copy(w, io.LimitReader(this.body, this.GetContentLength()))
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 

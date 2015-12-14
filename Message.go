@@ -16,8 +16,8 @@ type Message interface {
 	SetSIPVersion(string) error
 	GetHeader() Header
 	SetHeader(Header)
-	GetContentLength() int
-	SetContentLength(l int)
+	GetContentLength() int64
+	SetContentLength(l int64)
 	GetBody() io.Reader
 	SetBody(io.Reader)
 }
@@ -26,7 +26,7 @@ type Message interface {
 type message struct {
 	sipVersion    string
 	header        Header
-	contentLength int
+	contentLength int64
 	body          io.Reader
 }
 
@@ -51,11 +51,11 @@ func (this *message) SetHeader(header Header) {
 	this.header = header
 }
 
-func (this *message) GetContentLength() int {
+func (this *message) GetContentLength() int64 {
 	return this.contentLength
 }
 
-func (this *message) SetContentLength(l int) {
+func (this *message) SetContentLength(l int64) {
 	this.contentLength = l
 }
 
@@ -111,16 +111,16 @@ func ReadMessage(m Message, tp *textproto.Reader, b *bufio.Reader) error {
 
 // parseContentLength trims whitespace from s and returns -1 if no value
 // is set, or the value if it's >= 0.
-func parseContentLength(cl string) (int, error) {
+func parseContentLength(cl string) (int64, error) {
 	cl = strings.TrimSpace(cl)
 	if cl == "" {
 		return -1, nil
 	}
-	n, err := strconv.ParseInt(cl, 10, 32)
+	n, err := strconv.ParseInt(cl, 10, 64)
 	if err != nil || n < 0 {
 		return 0, fmt.Errorf("bad Content-Length %d", cl)
 	}
-	return int(n), nil
+	return n, nil
 
 }
 

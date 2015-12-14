@@ -104,11 +104,11 @@ func NewResponse(statusCode int, reasonPhrase string, body io.Reader) (Response,
 	if body != nil {
 		switch v := body.(type) {
 		case *bytes.Buffer:
-			this.contentLength = int(v.Len())
+			this.contentLength = int64(v.Len())
 		case *bytes.Reader:
-			this.contentLength = int(v.Len())
+			this.contentLength = int64(v.Len())
 		case *strings.Reader:
-			this.contentLength = int(v.Len())
+			this.contentLength = int64(v.Len())
 		}
 	}
 
