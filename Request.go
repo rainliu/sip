@@ -92,17 +92,6 @@ func (this *request) SetRequestURI(requestURI string) error {
 	return nil
 }
 
-// parseRequestLine parses "INVITE sip:bob@biloxi.com SIP/2.0" into its three parts.
-func parseRequestLine(line string) (method, requestURI, proto string, ok bool) {
-	s1 := strings.Index(line, " ")
-	s2 := strings.Index(line[s1+1:], " ")
-	if s1 < 0 || s2 < 0 {
-		return
-	}
-	s2 += s1 + 1
-	return line[:s1], line[s1+1 : s2], line[s2+1:], true
-}
-
 // ReadRequest reads and parses an incoming request from b.
 func ReadRequest(b *bufio.Reader) (req *request, err error) {
 	tp := newTextprotoReader(b)
@@ -120,13 +109,16 @@ func ReadRequest(b *bufio.Reader) (req *request, err error) {
 		}
 	}()
 
-	var ok bool
-	req.method, req.requestURI, req.sipVersion, ok = parseRequestLine(s)
-	if !ok {
+	s1 := strings.Index(s, " ")
+	s2 := strings.Index(s[s1+1:], " ")
+	if s1 < 0 || s2 < 0 {
 		return nil, fmt.Errorf("malformed SIP request %s", s)
 	}
+	s2 += s1 + 1
+	req.method, req.requestURI, req.sipVersion = s[:s1], s[s1+1:s2], s[s2+1:]
+
 	//rawurl := req.requestURI
-	if _, _, ok = ParseSIPVersion(req.sipVersion); !ok {
+	if _, _, ok := ParseSIPVersion(req.sipVersion); !ok {
 		return nil, fmt.Errorf("malformed SIP version %s", req.sipVersion)
 	}
 
