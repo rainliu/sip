@@ -147,11 +147,6 @@ func (this *response) Write(w io.Writer) (err error) {
 }
 
 // ReadResponse reads and returns an SIP response from r.
-// The req parameter optionally specifies the Request that corresponds
-// to this Response. If nil, a GET request is assumed.
-// Clients must call resp.Body.Close when finished reading resp.Body.
-// After that call, clients can inspect resp.Trailer to find key/value
-// pairs included in the response trailer.
 func ReadResponse(r *bufio.Reader) (*response, error) {
 	tp := textproto.NewReader(r)
 	resp := new(response)
