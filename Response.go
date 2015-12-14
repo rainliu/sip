@@ -3,10 +3,8 @@ package sip
 import (
 	"bufio"
 	"bytes"
-	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/textproto"
 	"strconv"
 	"strings"
@@ -85,18 +83,11 @@ type response struct {
 }
 
 func NewResponse(statusCode int, reasonPhrase string, body io.Reader) (Response, error) {
-	if statusCode < 100 {
-		return nil, errors.New("Invalid StatusCode")
-	}
-	rc, ok := body.(io.ReadCloser)
-	if !ok && body != nil {
-		rc = ioutil.NopCloser(body)
-	}
 	this := &response{
 		message: message{
 			sipVersion: "SIP/2.0",
 			header:     make(Header),
-			body:       rc,
+			body:       body,
 		},
 		statusCode:   statusCode,
 		reasonPhrase: reasonPhrase,
@@ -155,7 +146,7 @@ func (this *response) Write(w io.Writer) (err error) {
 	return nil
 }
 
-// ReadResponse reads and returns an HTTP response from r.
+// ReadResponse reads and returns an SIP response from r.
 // The req parameter optionally specifies the Request that corresponds
 // to this Response. If nil, a GET request is assumed.
 // Clients must call resp.Body.Close when finished reading resp.Body.

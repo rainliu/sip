@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"strings"
 )
 
@@ -43,19 +42,11 @@ type request struct {
 }
 
 func NewRequest(method, requestURI string, body io.Reader) (Request, error) {
-	//	u, err := uri.Parse(requestURI)
-	//	if err != nil {
-	//		return nil, err
-	//	}
-	rc, ok := body.(io.ReadCloser)
-	if !ok && body != nil {
-		rc = ioutil.NopCloser(body)
-	}
 	this := &request{
 		message: message{
 			sipVersion: "SIP/2.0",
 			header:     make(Header),
-			body:       rc,
+			body:       body,
 		},
 		method:     method,
 		requestURI: requestURI,
@@ -92,7 +83,7 @@ func (this *request) SetRequestURI(requestURI string) error {
 	return nil
 }
 
-//	Method URI SIP/2.0
+//	Method RequestURI SIP/2.0
 //	Header
 //	ContentLength
 //	Body
@@ -139,7 +130,6 @@ func ReadRequest(b *bufio.Reader) (req *request, err error) {
 	s2 += s1 + 1
 	req.method, req.requestURI, req.sipVersion = s[:s1], s[s1+1:s2], s[s2+1:]
 
-	//rawurl := req.requestURI
 	if _, _, ok := ParseSIPVersion(req.sipVersion); !ok {
 		return nil, fmt.Errorf("malformed SIP version %s", req.sipVersion)
 	}
