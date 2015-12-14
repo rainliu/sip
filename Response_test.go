@@ -1,6 +1,11 @@
 package sip
 
-import "testing"
+import (
+	"bufio"
+	"bytes"
+	"strings"
+	"testing"
+)
 
 func TestReadResponse(t *testing.T) {
 	var tvi = []string{
@@ -27,26 +32,18 @@ func TestReadResponse(t *testing.T) {
 	//	}
 
 	for i := 0; i < len(tvi); i++ {
-		//		smp := NewStringMsgParser()
-		//		if sm, err := smp.ParseSIPMessage(tvi[i]); err != nil {
-		//			t.Log(err)
-		//			t.Fail()
-		//		} else {
-		//			d := sm.String()
-		//			s := tvo[i]
-
-		//			if strings.TrimSpace(d) != strings.TrimSpace(s) {
-		//				t.Log("origin = " + s)
-		//				t.Log("failed = " + d)
-
-		//				// for j := 0; j < len(s); j++ {
-		//				// 	if d[j] != s[j] {
-		//				// 		t.Logf("%d:%c vs %c", j, d[j], s[j])
-		//				// 	}
-		//				// }
-
-		//				t.Fail()
-		//			}
-		//		}
+		b := bufio.NewReader(strings.NewReader(tvi[i]))
+		res, err := ReadResponse(b)
+		if err != nil {
+			t.Log(res)
+		} else {
+			var buffer bytes.Buffer
+			err = res.Write(&buffer)
+			if err != nil {
+				t.Log(err)
+			} else {
+				t.Log(buffer.String())
+			}
+		}
 	}
 }

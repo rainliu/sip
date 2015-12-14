@@ -67,6 +67,37 @@ func (this *message) SetBody(body io.Reader) {
 	this.body = body
 }
 
+// Headers that Request.Write handles itself and should be skipped.
+var reqWriteExcludeHeader = map[string]bool{
+	"Content-Length": true,
+}
+
+//	Header
+//	ContentLength
+//	Body
+func (this *message) write(w io.Writer) (err error) {
+	if err = this.header.WriteSubset(w, reqWriteExcludeHeader); err != nil {
+		return err
+	}
+
+	if _, err = fmt.Fprintf(w, "%s: %d\r\n", "Content-Length", this.GetContentLength()); err != nil {
+		return err
+	}
+
+	if _, err = io.WriteString(w, "\r\n"); err != nil {
+		return err
+	}
+
+	// Write body
+	if this.body != nil {
+		if _, err = io.Copy(w, io.LimitReader(this.body, this.GetContentLength())); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func ReadMessage(m Message, tp *textproto.Reader, b *bufio.Reader) error {
 	// Subsequent lines: Key: value.
 	mimeHeader, err := tp.ReadMIMEHeader()

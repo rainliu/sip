@@ -133,6 +133,28 @@ func (this *response) GetReasonPhrase() string {
 	return this.reasonPhrase
 }
 
+//	SIP/2.0 StatusCode reasonPhrase
+//	Header
+//	ContentLength
+//	Body
+func (this *response) Write(w io.Writer) (err error) {
+	var bw *bufio.Writer
+	if _, ok := w.(io.ByteWriter); !ok {
+		bw = bufio.NewWriter(w)
+		w = bw
+	}
+
+	if _, err = fmt.Fprintf(w, "SIP/2.0 %d %s\r\n", this.GetStatusCode(), this.GetReasonPhrase()); err != nil {
+		return err
+	}
+
+	if err = this.write(w); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // ReadResponse reads and returns an HTTP response from r.
 // The req parameter optionally specifies the Request that corresponds
 // to this Response. If nil, a GET request is assumed.
@@ -159,7 +181,7 @@ func ReadResponse(r *bufio.Reader) (*response, error) {
 	if len(f) > 2 {
 		reasonPhrase = f[2]
 	}
-	resp.reasonPhrase = f[1] + " " + reasonPhrase
+	resp.reasonPhrase = reasonPhrase
 	resp.statusCode, err = strconv.Atoi(f[1])
 	if err != nil {
 		return nil, fmt.Errorf("malformed SIP status code %s", f[1])
