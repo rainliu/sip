@@ -3,19 +3,21 @@ package sip
 type ServerTransaction interface {
 	Transaction
 
-	SendResponse(response Response) error
+	SendResponse(Response) error
 }
 
 type serverTransaction struct {
 	transaction
-
-	response Response
 }
 
 func newServerTransaction() *serverTransaction {
-	return &serverTransaction{}
+	return &serverTransaction{
+		transaction: transaction{
+			quit: make(chan bool),
+		},
+	}
 }
 
-func (this *serverTransaction) SendResponse(response Response) error {
+func (this *serverTransaction) SendResponse(resp Response) error {
 	return nil
 }

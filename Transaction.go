@@ -34,9 +34,14 @@ type transaction struct {
 func (this *transaction) GetDialog() Dialog {
 	return this.dialog
 }
-
+func (this *transaction) SetDialog(dialog Dialog) {
+	this.dialog = dialog
+}
 func (this *transaction) GetState() TransactionState {
 	return this.transactionState
+}
+func (this *transaction) SetState(transactionState TransactionState) {
+	this.transactionState = transactionState
 }
 func (this *transaction) GetRetransmitTimer() int {
 	return this.retransmitTimer
@@ -46,6 +51,9 @@ func (this *transaction) SetRetransmitTimer(retransmitTimer int) {
 }
 func (this *transaction) GetBranchId() string {
 	return this.branchId
+}
+func (this *transaction) SetBranchId(branchId string) {
+	this.branchId = branchId
 }
 func (this *transaction) GetRequest() Request {
 	return this.request
