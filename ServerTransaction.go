@@ -5,3 +5,17 @@ type ServerTransaction interface {
 
 	SendResponse(response Response) error
 }
+
+type serverTransaction struct {
+	transaction
+
+	response Response
+}
+
+func newServerTransaction() *serverTransaction {
+	return &serverTransaction{}
+}
+
+func (this *serverTransaction) SendResponse(response Response) error {
+	return nil
+}

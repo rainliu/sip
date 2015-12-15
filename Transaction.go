@@ -20,3 +20,36 @@ const (
 	TRANSACTIONSTATE_CONFIRMED                          //4
 	TRANSACTIONSTATE_TERMINATED                         //5
 )
+
+///////////////////////////////////////////////////////////////
+type transaction struct {
+	dialog           Dialog
+	transactionState TransactionState
+	retransmitTimer  int
+	branchId         string
+	request          Request
+	quit             chan bool
+}
+
+func (this *transaction) GetDialog() Dialog {
+	return this.dialog
+}
+
+func (this *transaction) GetState() TransactionState {
+	return this.transactionState
+}
+func (this *transaction) GetRetransmitTimer() int {
+	return this.retransmitTimer
+}
+func (this *transaction) SetRetransmitTimer(retransmitTimer int) {
+	this.retransmitTimer = retransmitTimer
+}
+func (this *transaction) GetBranchId() string {
+	return this.branchId
+}
+func (this *transaction) GetRequest() Request {
+	return this.request
+}
+func (this *transaction) Close() {
+	close(this.quit)
+}

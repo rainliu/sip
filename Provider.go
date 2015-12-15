@@ -1,6 +1,7 @@
 package sip
 
 import (
+	"bufio"
 	"log"
 	"net"
 	"sync"
@@ -145,4 +146,82 @@ func (this *provider) ServeAccept(t *transport) {
 func (this *provider) ServeConn(conn net.Conn) {
 	defer this.waitGroup.Done()
 	defer conn.Close()
+
+	s := newServerTransaction()
+	this.join <- s
+
+	for {
+		select {
+		case <-s.quit:
+			log.Println("Disconnecting", conn.RemoteAddr())
+			//for _, l := range this.listeners {
+			//	l.ProcessSessionTerminated(newEventSessionTerminated(s, s.Error(), s.Will()))
+			//}
+			this.leave <- s
+			return
+		default:
+			//can't delete default, otherwise blocking call
+		}
+
+		if req, err := this.readRequest(conn); err != nil {
+			if opErr, ok := err.(*net.OpError); ok && opErr.Timeout() {
+				/*s.keepAliveAccumulated += 1 //add 1 second
+				if s.keepAlive != 0 && s.keepAliveAccumulated >= (s.keepAlive*3)/2 {
+					log.Println("Timeout", conn.RemoteAddr())
+					for _, l := range this.listeners {
+						//l.ProcessTimeout()
+					}
+					s.Close()
+				} else {
+					continue
+				}*/
+			} else {
+				log.Println(err)
+				//for _, l := range this.listeners {
+				//	l.ProcessIOException(newEventIOException(s, conn.RemoteAddr()))
+				//}
+				s.Close()
+			}
+		} else {
+			log.Println(req.GetMethod())
+
+			/*s.keepAliveAccumulated = 0
+			if evt := s.Process(buf); evt != nil {
+				switch evt.GetEventType() {
+				case EVENT_CONNECT:
+					for _, l := range this.listeners {
+						l.ProcessConnect(evt.(EventConnect))
+					}
+				case EVENT_PUBLISH:
+					for _, l := range this.listeners {
+						l.ProcessPublish(evt.(EventPublish))
+					}
+				case EVENT_SUBSCRIBE:
+					for _, l := range this.listeners {
+						l.ProcessSubscribe(evt.(EventSubscribe))
+					}
+				case EVENT_UNSUBSCRIBE:
+					for _, l := range this.listeners {
+						l.ProcessUnsubscribe(evt.(EventUnsubscribe))
+					}
+				case EVENT_IOEXCEPTION:
+					for _, l := range this.listeners {
+						l.ProcessIOException(evt.(EventIOException))
+					}
+					s.Terminate(errors.New(s.Error()))
+				default:
+					s.Terminate(errors.New(s.Error()))
+				}
+			}*/
+		}
+	}
+}
+
+func (this *provider) readRequest(conn net.Conn) (Request, error) {
+	conn.SetDeadline(time.Now().Add(1e9)) //wait for 1 second
+	if req, err := ReadRequest(bufio.NewReader(conn)); err != nil {
+		return nil, err
+	} else {
+		return req, nil
+	}
 }
