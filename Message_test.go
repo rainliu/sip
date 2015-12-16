@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-func TestReadRequest(t *testing.T) {
+func TestReadMessage(t *testing.T) {
 	var tvi = []string{
 		"REGISTER sip:nist.gov SIP/2.0\r\n" +
 			"Via: SIP/2.0/UDP 129.6.55.182:14826\r\n" +
@@ -40,6 +40,16 @@ func TestReadRequest(t *testing.T) {
 			"a=rtpmap:4 G723/8000\r\n" +
 			"a=rtpmap:18 G729A/8000\r\n" +
 			"a=ptime:20\r\n",
+
+		"SIP/2.0 180 Ringing\r\n" +
+			"Via: SIP/2.0/UDP 172.18.1.29:5060;branch=z9hG4bK43fc10fb4446d55fc5c8f969607991f4\r\n" +
+			"To: \"0440\" <sip:0440@212.209.220.131>;tag=2600\r\n" +
+			"From: \"Andreas\" <sip:andreas@e-horizon.se>;tag=8524\r\n" +
+			"Call-ID: f51a1851c5f570606140f14c8eb64fd3@172.18.1.29\r\n" +
+			"CSeq: 1 INVITE\r\n" +
+			"Max-Forwards: 70\r\n" +
+			"Record-Route: <sip:212.209.220.131:5060>\r\n" +
+			"Content-Length: 0\r\n\r\n",
 	}
 	//	var tvo = []string{
 	//		"REGISTER sip:nist.gov SIP/2.0\r\n" +
@@ -73,6 +83,15 @@ func TestReadRequest(t *testing.T) {
 	//			"a=rtpmap:4 G723/8000\r\n" +
 	//			"a=rtpmap:18 G729A/8000\r\n" +
 	//			"a=ptime:20\r\n",
+	//		"SIP/2.0 180 Ringing\r\n" +
+	//			"Via: SIP/2.0/UDP 172.18.1.29:5060;branch=z9hG4bK43fc10fb4446d55fc5c8f969607991f4\r\n" +
+	//			"To: \"0440\" <sip:0440@212.209.220.131>;tag=2600\r\n" +
+	//			"From: \"Andreas\" <sip:andreas@e-horizon.se>;tag=8524\r\n" +
+	//			"Call-ID: f51a1851c5f570606140f14c8eb64fd3@172.18.1.29\r\n" +
+	//			"CSeq: 1 INVITE\r\n" +
+	//			"Max-Forwards: 70\r\n" +
+	//			"Record-Route: <sip:212.209.220.131:5060>\r\n" +
+	//			"Content-Length: 0\r\n\r\n",
 	//	}
 
 	for i := 0; i < len(tvi); i++ {
