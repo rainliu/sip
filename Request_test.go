@@ -77,7 +77,7 @@ func TestReadRequest(t *testing.T) {
 
 	for i := 0; i < len(tvi); i++ {
 		b := bufio.NewReader(strings.NewReader(tvi[i]))
-		req, err := ReadRequest(b)
+		req, err := ReadMessage(b)
 		if err != nil {
 			t.Log(req)
 		} else {

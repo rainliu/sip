@@ -1,12 +1,9 @@
 package sip
 
 import (
-	"bufio"
 	"bytes"
 	"fmt"
 	"io"
-	"net/textproto"
-	"strconv"
 	"strings"
 )
 
@@ -82,7 +79,7 @@ type response struct {
 	reasonPhrase string
 }
 
-func NewResponse(statusCode int, reasonPhrase string, body io.Reader) (Response, error) {
+func NewResponse(statusCode int, reasonPhrase string, body io.Reader) *response {
 	this := &response{
 		message: message{
 			sipVersion: "SIP/2.0",
@@ -92,6 +89,7 @@ func NewResponse(statusCode int, reasonPhrase string, body io.Reader) (Response,
 		statusCode:   statusCode,
 		reasonPhrase: reasonPhrase,
 	}
+	this.StartLineWriter = this
 	if body != nil {
 		switch v := body.(type) {
 		case *bytes.Buffer:
@@ -103,7 +101,7 @@ func NewResponse(statusCode int, reasonPhrase string, body io.Reader) (Response,
 		}
 	}
 
-	return this, nil
+	return this
 }
 
 func (this *response) SetStatusCode(statusCode int) error {
@@ -124,66 +122,10 @@ func (this *response) GetReasonPhrase() string {
 	return this.reasonPhrase
 }
 
-//	SIP/2.0 StatusCode reasonPhrase
-//	Header
-//	ContentLength
-//	Body
-func (this *response) Write(w io.Writer) (err error) {
-	var bw *bufio.Writer
-	if _, ok := w.(io.ByteWriter); !ok {
-		bw = bufio.NewWriter(w)
-		w = bw
-	}
-
+//SIP/2.0 StatusCode reasonPhrase
+func (this *response) StartLineWrite(w io.Writer) (err error) {
 	if _, err = fmt.Fprintf(w, "SIP/2.0 %d %s\r\n", this.GetStatusCode(), this.GetReasonPhrase()); err != nil {
 		return err
 	}
-
-	if err = this.write(w); err != nil {
-		return err
-	}
-
 	return nil
-}
-
-// ReadResponse reads and returns an SIP response from r.
-func ReadResponse(r *bufio.Reader) (*response, error) {
-	tp := textproto.NewReader(r)
-	resp := new(response)
-
-	// Parse the first line of the response.
-	line, err := tp.ReadLine()
-	if err != nil {
-		if err == io.EOF {
-			err = io.ErrUnexpectedEOF
-		}
-		return nil, err
-	}
-	f := strings.SplitN(line, " ", 3)
-	if len(f) < 2 {
-		return nil, fmt.Errorf("malformed SIP response %s", line)
-	}
-	reasonPhrase := ""
-	if len(f) > 2 {
-		reasonPhrase = f[2]
-	}
-	resp.reasonPhrase = reasonPhrase
-	resp.statusCode, err = strconv.Atoi(f[1])
-	if err != nil {
-		return nil, fmt.Errorf("malformed SIP status code %s", f[1])
-	}
-
-	resp.sipVersion = f[0]
-	var ok bool
-	if _, _, ok = ParseSIPVersion(resp.sipVersion); !ok {
-		return nil, fmt.Errorf("malformed SIP version", resp.sipVersion)
-	}
-
-	////////////////////////////////////////////////////////////////////////////
-	err = ReadMessage(resp, tp, r)
-	if err != nil {
-		return nil, err
-	}
-
-	return resp, nil
 }

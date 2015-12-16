@@ -163,7 +163,8 @@ func (this *provider) ServeConn(conn net.Conn) {
 			//can't delete default, otherwise blocking call
 		}
 
-		if req, err := this.readRequest(conn); err != nil {
+		conn.SetDeadline(time.Now().Add(1e9)) //wait for 1 second
+		if msg, err := ReadMessage(bufio.NewReader(conn)); err != nil {
 			if opErr, ok := err.(*net.OpError); ok && opErr.Timeout() {
 				/*s.keepAliveAccumulated += 1 //add 1 second
 				if s.keepAlive != 0 && s.keepAliveAccumulated >= (s.keepAlive*3)/2 {
@@ -183,7 +184,7 @@ func (this *provider) ServeConn(conn net.Conn) {
 				s.Close()
 			}
 		} else {
-			log.Println(req.GetMethod())
+			log.Println(msg.GetSIPVersion())
 
 			/*s.keepAliveAccumulated = 0
 			if evt := s.Process(buf); evt != nil {
@@ -214,14 +215,5 @@ func (this *provider) ServeConn(conn net.Conn) {
 				}
 			}*/
 		}
-	}
-}
-
-func (this *provider) readRequest(conn net.Conn) (Request, error) {
-	conn.SetDeadline(time.Now().Add(1e9)) //wait for 1 second
-	if req, err := ReadRequest(bufio.NewReader(conn)); err != nil {
-		return nil, err
-	} else {
-		return req, nil
 	}
 }

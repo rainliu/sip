@@ -11,7 +11,13 @@ import (
 	"sync"
 )
 
+type StartLineWriter interface {
+	StartLineWrite(io.Writer) error
+}
+
 type Message interface {
+	StartLineWriter
+
 	GetSIPVersion() string
 	SetSIPVersion(string) error
 	GetHeader() Header
@@ -20,10 +26,13 @@ type Message interface {
 	SetContentLength(l int64)
 	GetBody() io.Reader
 	SetBody(io.Reader)
+	Write(io.Writer) error
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 type message struct {
+	StartLineWriter
+
 	sipVersion    string
 	header        Header
 	contentLength int64
@@ -72,10 +81,21 @@ var reqWriteExcludeHeader = map[string]bool{
 	"Content-Length": true,
 }
 
+//  Start-Line
 //	Header
 //	ContentLength
 //	Body
-func (this *message) write(w io.Writer) (err error) {
+func (this *message) Write(w io.Writer) (err error) {
+	var bw *bufio.Writer
+	if _, ok := w.(io.ByteWriter); !ok {
+		bw = bufio.NewWriter(w)
+		w = bw
+	}
+
+	if err = this.StartLineWriter.StartLineWrite(w); err != nil {
+		return err
+	}
+
 	if err = this.header.WriteSubset(w, reqWriteExcludeHeader); err != nil {
 		return err
 	}
@@ -98,19 +118,60 @@ func (this *message) write(w io.Writer) (err error) {
 	return nil
 }
 
-func ReadMessage(m Message, tp *textproto.Reader, b *bufio.Reader) error {
+// ReadMessage reads and parses an incoming message from b.
+func ReadMessage(b *bufio.Reader) (msg Message, err error) {
+	tp := newTextprotoReader(b)
+
+	// First line: INVITE sip:bob@biloxi.com SIP/2.0 or SIP/2.0 180 Ringing
+	var s string
+	if s, err = tp.ReadLine(); err != nil {
+		return nil, err
+	}
+	defer func() {
+		putTextprotoReader(tp)
+		if err == io.EOF {
+			err = io.ErrUnexpectedEOF
+		}
+	}()
+
+	s1 := strings.Index(s, " ")
+	s2 := strings.Index(s[s1+1:], " ")
+	if s1 < 0 || s2 < 0 {
+		return nil, fmt.Errorf("malformed SIP request %s", s)
+	}
+	s2 += s1 + 1
+
+	if strings.TrimSpace(s[:s1]) == "SIP/2.0" {
+		var statusCode int
+		if statusCode, err = strconv.Atoi(s[s1+1 : s2]); err != nil {
+			return nil, fmt.Errorf("malformed SIP status code %s", s[s1+1:s2])
+		}
+		sipVersion, reasonPhrase := s[:s1], s[s2+1:]
+		if _, _, ok := ParseSIPVersion(sipVersion); !ok {
+			return nil, fmt.Errorf("malformed SIP version", sipVersion)
+		}
+		msg = NewResponse(statusCode, reasonPhrase, nil)
+	} else {
+		method, requestURI, sipVersion := s[:s1], s[s1+1:s2], s[s2+1:]
+		if _, _, ok := ParseSIPVersion(sipVersion); !ok {
+			return nil, fmt.Errorf("malformed SIP version", sipVersion)
+		}
+		msg = NewRequest(method, requestURI, nil)
+	}
+
+	////////////////////////////////////////////////////////////////////////////
 	// Subsequent lines: Key: value.
 	mimeHeader, err := tp.ReadMIMEHeader()
 	if err != nil {
-		return err
+		return nil, err
 	}
-	m.SetHeader(Header(mimeHeader))
+	msg.SetHeader(Header(mimeHeader))
 
 	////////////////////////////////////////////////////////////////////////////
 
-	contentLens := m.GetHeader()["Content-Length"]
+	contentLens := msg.GetHeader()["Content-Length"]
 	if len(contentLens) > 1 { // harden against SIP request smuggling. See RFC 7230.
-		return errors.New("http: message cannot contain multiple Content-Length headers")
+		return nil, errors.New("http: message cannot contain multiple Content-Length headers")
 	}
 
 	// Logic based on Content-Length
@@ -121,23 +182,23 @@ func ReadMessage(m Message, tp *textproto.Reader, b *bufio.Reader) error {
 	if cl != "" {
 		n, err := parseContentLength(cl)
 		if err != nil {
-			return err
+			return nil, err
 		}
-		m.SetContentLength(n)
+		msg.SetContentLength(n)
 	} else {
-		m.GetHeader().Del("Content-Length")
-		m.SetContentLength(0)
+		msg.GetHeader().Del("Content-Length")
+		msg.SetContentLength(0)
 	}
 
 	////////////////////////////////////////////////////////////////////////////
 
-	if m.GetContentLength() > 0 {
-		m.SetBody(io.LimitReader(b, int64(m.GetContentLength())))
+	if msg.GetContentLength() > 0 {
+		msg.SetBody(io.LimitReader(b, int64(msg.GetContentLength())))
 	} else {
-		m.SetBody(nil)
+		msg.SetBody(nil)
 	}
 
-	return nil
+	return msg, nil
 }
 
 // parseContentLength trims whitespace from s and returns -1 if no value

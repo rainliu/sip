@@ -33,7 +33,7 @@ func TestReadResponse(t *testing.T) {
 
 	for i := 0; i < len(tvi); i++ {
 		b := bufio.NewReader(strings.NewReader(tvi[i]))
-		res, err := ReadResponse(b)
+		res, err := ReadMessage(b)
 		if err != nil {
 			t.Log(res)
 		} else {
