@@ -27,7 +27,6 @@ type Transport interface {
 
 	Listen() error
 	Accept() (net.Conn, error)
-	Close()
 }
 
 ////////////////////Implementation////////////////////////
@@ -123,12 +122,6 @@ func (this *transport) Accept() (net.Conn, error) {
 		return conn, err
 	} else {
 		return nil, errors.New("Listen() must be called first or Listener is nil\n")
-	}
-}
-
-func (this *transport) Close() {
-	if this.lner != nil {
-		close(this.quit)
 	}
 }
 

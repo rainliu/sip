@@ -96,12 +96,19 @@ func TestReadMessage(t *testing.T) {
 
 	for i := 0; i < len(tvi); i++ {
 		b := bufio.NewReader(strings.NewReader(tvi[i]))
-		req, err := ReadMessage(b)
+		msg, err := ReadMessage(b)
 		if err != nil {
-			t.Log(req)
+			t.Log(err)
 		} else {
+			var slbuffer bytes.Buffer
+			if err := msg.StartLineWrite(&slbuffer); err != nil {
+				t.Log(err)
+			} else {
+				t.Log("Received: ", slbuffer.String())
+			}
+
 			var buffer bytes.Buffer
-			err = req.Write(&buffer)
+			err = msg.Write(&buffer)
 			if err != nil {
 				t.Log(err)
 			} else {

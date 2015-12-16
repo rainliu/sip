@@ -2,6 +2,7 @@ package sip
 
 import (
 	"bufio"
+	"bytes"
 	"log"
 	"net"
 	"sync"
@@ -25,7 +26,6 @@ type provider struct {
 	transports   map[Transport]Transport
 	transactions map[Transaction]Transaction
 
-	//forward   chan Message
 	join  chan Transaction
 	leave chan Transaction
 
@@ -42,7 +42,6 @@ func newProvider(tracer Tracer) *provider {
 	this.transports = make(map[Transport]Transport)
 	this.transactions = make(map[Transaction]Transaction)
 
-	//this.forward 	= make(chan Message)
 	this.join = make(chan Transaction)
 	this.leave = make(chan Transaction)
 
@@ -85,7 +84,7 @@ func (this *provider) Run() {
 	for {
 		select {
 		case <-this.quit:
-			this.tracer.Println("Provider Quit")
+			this.tracer.Println("Provider Stopped!!!")
 			return
 
 		case s := <-this.join:
@@ -108,13 +107,10 @@ func (this *provider) Run() {
 }
 
 func (this *provider) Stop() {
+	close(this.quit)
 	for _, s := range this.transactions {
 		s.Close()
 	}
-	for _, t := range this.transports {
-		t.Close()
-	}
-	close(this.quit)
 	this.waitGroup.Wait()
 }
 
@@ -124,7 +120,7 @@ func (this *provider) ServeAccept(t *transport) {
 
 	for {
 		select {
-		case <-t.quit:
+		case <-this.quit:
 			log.Printf("Listening %s://%s:%d Stoped!!!\n", t.GetNetwork(), t.GetAddress(), t.GetPort())
 			return
 		default:
@@ -147,17 +143,10 @@ func (this *provider) ServeConn(conn net.Conn) {
 	defer this.waitGroup.Done()
 	defer conn.Close()
 
-	s := newServerTransaction()
-	this.join <- s
-
 	for {
 		select {
-		case <-s.quit:
-			log.Println("Disconnecting", conn.RemoteAddr())
-			//for _, l := range this.listeners {
-			//	l.ProcessSessionTerminated(newEventSessionTerminated(s, s.Error(), s.Will()))
-			//}
-			this.leave <- s
+		case <-this.quit:
+			log.Println("Disconnecting...", conn.RemoteAddr())
 			return
 		default:
 			//can't delete default, otherwise blocking call
@@ -178,13 +167,15 @@ func (this *provider) ServeConn(conn net.Conn) {
 				}*/
 			} else {
 				log.Println(err)
-				//for _, l := range this.listeners {
-				//	l.ProcessIOException(newEventIOException(s, conn.RemoteAddr()))
-				//}
-				s.Close()
+				return
 			}
 		} else {
-			log.Println(msg.GetSIPVersion())
+			var buffer bytes.Buffer
+			if err := msg.StartLineWrite(&buffer); err != nil {
+				log.Println(err)
+			} else {
+				log.Println("Received: ", buffer.String())
+			}
 
 			/*s.keepAliveAccumulated = 0
 			if evt := s.Process(buf); evt != nil {
