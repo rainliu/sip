@@ -21,7 +21,7 @@ type Provider interface {
 	GetNewCallId() string
 
 	GetNewClientTransaction(Request) ClientTransaction
-	GetNewServerTransaction(Response) ServerTransaction
+	GetNewServerTransaction(Request) ServerTransaction
 
 	SendRequest(Request) error
 	SendResponse(Response) error
@@ -84,7 +84,7 @@ func (this *provider) GetNewCallId() string {
 func (this *provider) GetNewClientTransaction(Request) ClientTransaction {
 	return nil
 }
-func (this *provider) GetNewServerTransaction(Response) ServerTransaction {
+func (this *provider) GetNewServerTransaction(Request) ServerTransaction {
 	return nil
 }
 
