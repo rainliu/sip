@@ -12,10 +12,10 @@ type clientTransaction struct {
 	transaction
 }
 
-func newClientTransaction(req Request) *clientTransaction {
+func newClientTransaction(request Request) *clientTransaction {
 	return &clientTransaction{
 		transaction: transaction{
-			request: req,
+			request: request,
 			quit:    make(chan bool),
 		},
 	}

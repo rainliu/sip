@@ -10,10 +10,11 @@ type serverTransaction struct {
 	transaction
 }
 
-func newServerTransaction() *serverTransaction {
+func newServerTransaction(request Request) *serverTransaction {
 	return &serverTransaction{
 		transaction: transaction{
-			quit: make(chan bool),
+			request: request,
+			quit:    make(chan bool),
 		},
 	}
 }

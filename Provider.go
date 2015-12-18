@@ -34,8 +34,9 @@ type provider struct {
 	transports   map[Transport]Transport
 	transactions map[Transaction]Transaction
 
-	join  chan Transaction
-	leave chan Transaction
+	forward chan Message
+	join    chan Transaction
+	leave   chan Transaction
 
 	quit      chan bool
 	waitGroup *sync.WaitGroup
@@ -50,6 +51,7 @@ func newProvider(tracer Tracer) *provider {
 	this.transports = make(map[Transport]Transport)
 	this.transactions = make(map[Transaction]Transaction)
 
+	this.forward = make(chan Message)
 	this.join = make(chan Transaction)
 	this.leave = make(chan Transaction)
 
@@ -81,11 +83,15 @@ func (this *provider) GetNewCallId() string {
 	return ""
 }
 
-func (this *provider) GetNewClientTransaction(Request) ClientTransaction {
-	return nil
+func (this *provider) GetNewClientTransaction(req Request) ClientTransaction {
+	ct := newClientTransaction(req)
+	this.join <- ct
+	return ct
 }
-func (this *provider) GetNewServerTransaction(Request) ServerTransaction {
-	return nil
+func (this *provider) GetNewServerTransaction(req Request) ServerTransaction {
+	st := newServerTransaction(req)
+	this.join <- st
+	return st
 }
 
 func (this *provider) SendRequest(Request) error {
@@ -119,15 +125,13 @@ func (this *provider) Run() {
 		case s := <-this.leave:
 			delete(this.transactions, s)
 
-			//		case msg := <-this.forward:
-			//			for _, s := range this.transactions {
-			//				if err := s.Forward(msg); err != nil {
-			//					this.tracer.Println(err)
-			//					for _, l := range this.listeners {
-			//						l.ProcessIOException(newEventIOException(s, s.conn.RemoteAddr()))
-			//					}
-			//				}
-			//			}
+		case msg := <-this.forward:
+			var buffer bytes.Buffer
+			if err := msg.StartLineWrite(&buffer); err != nil {
+				log.Println(err)
+			} else {
+				log.Println("Received: ", buffer.String())
+			}
 		}
 	}
 }
@@ -181,56 +185,13 @@ func (this *provider) ServeConn(conn net.Conn) {
 		conn.SetDeadline(time.Now().Add(1e9)) //wait for 1 second
 		if msg, err := ReadMessage(bufio.NewReader(conn)); err != nil {
 			if opErr, ok := err.(*net.OpError); ok && opErr.Timeout() {
-				/*s.keepAliveAccumulated += 1 //add 1 second
-				if s.keepAlive != 0 && s.keepAliveAccumulated >= (s.keepAlive*3)/2 {
-					log.Println("Timeout", conn.RemoteAddr())
-					for _, l := range this.listeners {
-						//l.ProcessTimeout()
-					}
-					s.Close()
-				} else {
-					continue
-				}*/
+				continue
 			} else {
 				log.Println(err)
 				return
 			}
 		} else {
-			var buffer bytes.Buffer
-			if err := msg.StartLineWrite(&buffer); err != nil {
-				log.Println(err)
-			} else {
-				log.Println("Received: ", buffer.String())
-			}
-
-			/*s.keepAliveAccumulated = 0
-			if evt := s.Process(buf); evt != nil {
-				switch evt.GetEventType() {
-				case EVENT_CONNECT:
-					for _, l := range this.listeners {
-						l.ProcessConnect(evt.(EventConnect))
-					}
-				case EVENT_PUBLISH:
-					for _, l := range this.listeners {
-						l.ProcessPublish(evt.(EventPublish))
-					}
-				case EVENT_SUBSCRIBE:
-					for _, l := range this.listeners {
-						l.ProcessSubscribe(evt.(EventSubscribe))
-					}
-				case EVENT_UNSUBSCRIBE:
-					for _, l := range this.listeners {
-						l.ProcessUnsubscribe(evt.(EventUnsubscribe))
-					}
-				case EVENT_IOEXCEPTION:
-					for _, l := range this.listeners {
-						l.ProcessIOException(evt.(EventIOException))
-					}
-					s.Terminate(errors.New(s.Error()))
-				default:
-					s.Terminate(errors.New(s.Error()))
-				}
-			}*/
+			this.forward <- msg
 		}
 	}
 }
