@@ -12,11 +12,19 @@ import (
 ////////////////////Interface//////////////////////////////
 
 type Provider interface {
-	AddTransport(t Transport)
-	RemoveTransport(t Transport)
+	AddTransport(Transport)
+	RemoveTransport(Transport)
 
-	AddListener(l Listener)
-	RemoveListener(l Listener)
+	AddListener(Listener)
+	RemoveListener(Listener)
+
+	GetNewCallId() string
+
+	GetNewClientTransaction(Request) ClientTransaction
+	GetNewServerTransaction(Response) ServerTransaction
+
+	SendRequest(Request) error
+	SendResponse(Response) error
 }
 
 ////////////////////Implementation////////////////////////
@@ -67,6 +75,24 @@ func (this *provider) AddListener(l Listener) {
 
 func (this *provider) RemoveListener(l Listener) {
 	delete(this.listeners, l)
+}
+
+func (this *provider) GetNewCallId() string {
+	return ""
+}
+
+func (this *provider) GetNewClientTransaction(Request) ClientTransaction {
+	return nil
+}
+func (this *provider) GetNewServerTransaction(Response) ServerTransaction {
+	return nil
+}
+
+func (this *provider) SendRequest(Request) error {
+	return nil
+}
+func (this *provider) SendResponse(Response) error {
+	return nil
 }
 
 func (this *provider) Run() {
