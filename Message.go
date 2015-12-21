@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/textproto"
 	"sip/header"
+	"sip/parser"
 	"strconv"
 	"strings"
 	"sync"
@@ -190,22 +191,14 @@ func ReadMessage(b *bufio.Reader) (msg Message, err error) {
 	contentLens := msg.GetHeader()["Content-Length"]
 	if len(contentLens) > 1 { // harden against SIP request smuggling. See RFC 7230.
 		return nil, errors.New("http: message cannot contain multiple Content-Length headers")
-	}
-
-	// Logic based on Content-Length
-	var cl string
-	if len(contentLens) == 1 {
-		cl = strings.TrimSpace(contentLens[0])
-	}
-	if cl != "" {
-		n, err := parseContentLength(cl)
-		if err != nil {
-			return nil, err
-		}
-		msg.SetContentLength(n)
-	} else {
-		msg.GetHeader().Del("Content-Length")
+	} else if len(contentLens) == 0 {
 		msg.SetContentLength(0)
+	} else {
+		if cl, err := parser.NewContentLengthParser("Content-Length: " + contentLens[0]).Parse(); err != nil {
+			return nil, err
+		} else {
+			msg.SetContentLength(int64(cl.(header.ContentLengthHeader).GetContentLength()))
+		}
 	}
 
 	////////////////////////////////////////////////////////////////////////////
@@ -217,21 +210,6 @@ func ReadMessage(b *bufio.Reader) (msg Message, err error) {
 	}
 
 	return msg, nil
-}
-
-// parseContentLength trims whitespace from s and returns -1 if no value
-// is set, or the value if it's >= 0.
-func parseContentLength(cl string) (int64, error) {
-	cl = strings.TrimSpace(cl)
-	if cl == "" {
-		return -1, nil
-	}
-	n, err := strconv.ParseInt(cl, 10, 64)
-	if err != nil || n < 0 {
-		return 0, fmt.Errorf("bad Content-Length %d", cl)
-	}
-	return n, nil
-
 }
 
 var textprotoReaderPool sync.Pool
