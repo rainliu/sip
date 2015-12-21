@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/textproto"
+	"sip/header"
 	"strconv"
 	"strings"
 	"sync"
@@ -33,10 +34,20 @@ type Message interface {
 type message struct {
 	StartLineWriter
 
-	sipVersion    string
-	header        Header
-	contentLength int64
-	body          io.Reader
+	sipVersion string
+	header     Header
+
+	/** Direct accessors for frequently accessed headers  **/
+	via           []*header.Via
+	from          *header.From
+	to            *header.To
+	cSeq          *header.CSeq
+	callId        *header.CallID
+	maxForwards   *header.MaxForwards
+	contentLength *header.ContentLength
+
+	//contentLength int64
+	body io.Reader
 }
 
 func (this *message) GetSIPVersion() string {
@@ -61,11 +72,18 @@ func (this *message) SetHeader(header Header) {
 }
 
 func (this *message) GetContentLength() int64 {
-	return this.contentLength
+	if this.contentLength != nil {
+		return int64(this.contentLength.GetContentLength())
+	} else {
+		return 0
+	}
 }
 
 func (this *message) SetContentLength(l int64) {
-	this.contentLength = l
+	if this.contentLength == nil {
+		this.contentLength = header.NewContentLength()
+	}
+	this.contentLength.SetContentLength(int(l))
 }
 
 func (this *message) GetBody() io.Reader {
